@@ -87,6 +87,7 @@ class Status extends ImmutablePureComponent {
     updateScrollBottom: PropTypes.func,
     cacheMediaWidth: PropTypes.func,
     cachedMediaWidth: PropTypes.number,
+    isIntersecting: PropTypes.bool,
   };
 
   // Avoid checking props that are functions (and whose equality will always
@@ -96,6 +97,7 @@ class Status extends ImmutablePureComponent {
     'account',
     'muted',
     'hidden',
+    'isIntersecting',
   ];
 
   state = {
@@ -257,7 +259,7 @@ class Status extends ImmutablePureComponent {
     let media = null;
     let statusAvatar, prepend, rebloggedByText;
 
-    const { intl, hidden, featured, otherAccounts, unread, showThread } = this.props;
+    const { intl, hidden, featured, otherAccounts, unread, showThread, isIntersecting } = this.props;
 
     let { status, account, ...other } = this.props;
 
@@ -432,7 +434,7 @@ class Status extends ImmutablePureComponent {
               </a>
             </div>
 
-            <StatusContent status={status} onClick={this.handleClick} expanded={!status.get('hidden')} onExpandedToggle={this.handleExpandedToggle} collapsable onCollapsedToggle={this.handleCollapsedToggle} />
+            <StatusContent status={status} onClick={this.handleClick} expanded={!status.get('hidden')} onExpandedToggle={this.handleExpandedToggle} collapsable onCollapsedToggle={this.handleCollapsedToggle} isIntersecting={isIntersecting} />
 
             {media}
 

@@ -121,14 +121,16 @@ export default class IntersectionObserverArticle extends React.Component {
           data-id={id}
           tabIndex='0'
         >
-          {children && React.cloneElement(children, { hidden: true })}
+          {children && React.cloneElement(children, { hidden: true,
+                                                      isIntersecting: isIntersecting })}
         </article>
       );
     }
 
     return (
       <article ref={this.handleRef} aria-posinset={index + 1} aria-setsize={listLength} data-id={id} tabIndex='0'>
-        {children && React.cloneElement(children, { hidden: false })}
+        {children && React.cloneElement(children, { hidden: false,
+                                                    isIntersecting: isIntersecting })}
       </article>
     );
   }

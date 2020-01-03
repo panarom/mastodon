@@ -96,14 +96,17 @@ export default class StatusContent extends React.PureComponent {
     }
   }
 
-  componentDidMount () {
+  _updateStatusContent () {
     this._updateStatusLinks();
     this._updateStatusEmojis();
   }
 
+  componentDidMount () {
+    if(this.props.isIntersecting) this._updateStatusContent();
+  }
+
   componentDidUpdate () {
-    this._updateStatusLinks();
-    this._updateStatusEmojis();
+    if(this.props.isIntersecting) this._updateStatusContent();
   }
 
   onMentionClick = (mention, e) => {
