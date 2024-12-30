@@ -451,6 +451,37 @@ export const Search: React.FC<{
     setSelectedOption(-1);
   }, [setExpanded, setSelectedOption]);
 
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLInputElement>) => {
+    event.preventDefault();
+  });
+  const handleDrop = useCallback((event: React.DragEvent<HTMLInputElement>) => {
+    event.preventDefault();
+
+    handleClear();
+
+    const query = event.dataTransfer.getData('URL') ||
+      event.dataTransfer.getData('text/plain');
+    let contextualQuery;
+    if (/^https?:\/\//.test(query.toLowerCase())) {
+      const mastoURL = new URL(query).pathname;
+
+      if (/\/tags\//.test(mastoURL)) {
+        contextualQuery = mastoURL.replace('/tags/', '#');
+      } else if (/\/(@[^@]+){2}\/?$/.test(mastoURL)) {
+        contextualQuery = mastoURL.replaceAll('/', '');
+      } else {
+        contextualQuery = query;
+      }
+    } else {
+      contextualQuery = query;
+    }
+    Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value'
+    ).set.call(event.target, contextualQuery);
+    
+    event.target.focus();
+    event.target.dispatchEvent(new Event('change', {bubbles: true}));
+  });
+
   return (
     <form className={classNames('search', { active: expanded })}>
       <input
@@ -468,6 +499,8 @@ export const Search: React.FC<{
         onKeyDown={handleKeyDown}
         onFocus={handleFocus}
         onBlur={handleBlur}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       />
 
       <button type='button' className='search__icon' onClick={handleClear}>
