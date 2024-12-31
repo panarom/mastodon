@@ -486,22 +486,9 @@ export const Search: React.FC<{
 
     const query = event.dataTransfer.getData('URL') ||
       event.dataTransfer.getData('text/plain');
-    let contextualQuery;
-    if (/^https?:\/\//.test(query.toLowerCase())) {
-      const mastoURL = new URL(query).pathname;
 
-      if (/\/tags\//.test(mastoURL)) {
-        contextualQuery = mastoURL.replace('/tags/', '#');
-      } else if (/\/(@[^@]+){2}\/?$/.test(mastoURL)) {
-        contextualQuery = mastoURL.replaceAll('/', '');
-      } else {
-        contextualQuery = query;
-      }
-    } else {
-      contextualQuery = query;
-    }
     Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value'
-    ).set.call(event.target, contextualQuery);
+    ).set.call(event.target, query);
     
     event.target.focus();
     event.target.dispatchEvent(new Event('change', {bubbles: true}));
