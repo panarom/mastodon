@@ -252,6 +252,88 @@ export const Search: React.FC<{
     [dispatch, history],
   );
 
+  const QuickActionGenerators = {
+    couldBeURL: url => ({
+      key: 'open-url',
+      label: (
+        <FormattedMessage
+          id='search.quick_action.open_url'
+          defaultMessage='Open URL in Mastodon'
+        />
+      ),
+      action: async () => {
+        const result = await dispatch(openURL({ url: url }));
+  
+        if (isFulfilled(result)) {
+          if (result.payload.accounts[0]) {
+            history.push(`/@${result.payload.accounts[0].acct}`);
+          } else if (result.payload.statuses[0]) {
+            history.push(
+              `/@${result.payload.statuses[0].account.acct}/${result.payload.statuses[0].id}`,
+            );
+          }
+        }
+  
+        unfocus();
+      },
+    }),
+    couldBeHashtag: query => ({
+      key: 'go-to-hashtag',
+      label: (
+        <FormattedMessage
+          id='search.quick_action.go_to_hashtag'
+          defaultMessage='Go to hashtag {x}'
+          values={{ x: <mark>#{query}</mark> }}
+        />
+      ),
+      action: () => {
+        history.push(`/tags/${query}`);
+        void dispatch(clickSearchResult({ q: query, type: 'hashtag' }));
+        unfocus();
+      },
+    }),
+    couldBeUsername: query => ({
+      key: 'go-to-account',
+      label: (
+        <FormattedMessage
+          id='search.quick_action.go_to_account'
+          defaultMessage='Go to profile {x}'
+          values={{ x: <mark>@{query}</mark> }}
+        />
+      ),
+      action: () => {
+        history.push(`/@${query}`);
+        void dispatch(clickSearchResult({ q: query, type: 'account' }));
+        unfocus();
+      },
+    }),
+    couldBeStatusSearch: value => ({
+      key: 'status-search',
+      label: (
+        <FormattedMessage
+          id='search.quick_action.status_search'
+          defaultMessage='Posts matching {x}'
+          values={{ x: <mark>{value}</mark> }}
+        />
+      ),
+      action: () => {
+        submit(value, 'statuses');
+      },
+    }),
+    accountSearch: value => ({
+      key: 'account-search',
+      label: (
+        <FormattedMessage
+          id='search.quick_action.account_search'
+          defaultMessage='Profiles matching {x}'
+          values={{ x: <mark>{value}</mark> }}
+        />
+      ),
+      action: () => {
+        submit(value, 'accounts');
+      },
+    })
+  }
   const handleChange = useCallback(
     ({ target: { value } }: React.ChangeEvent<HTMLInputElement>) => {
       setValue(value);
@@ -263,108 +345,51 @@ export const Search: React.FC<{
         const couldBeURL =
           trimmedValue.startsWith('https://') && !trimmedValue.includes(' ');
 
+        let mastoPath;
         if (couldBeURL) {
-          newQuickActions.push({
-            key: 'open-url',
-            label: (
-              <FormattedMessage
-                id='search.quick_action.open_url'
-                defaultMessage='Open URL in Mastodon'
-              />
-            ),
-            action: async () => {
-              const result = await dispatch(openURL({ url: trimmedValue }));
+          newQuickActions.push(QuickActionGenerators.couldBeURL(trimmedValue));
 
-              if (isFulfilled(result)) {
-                if (result.payload.accounts[0]) {
-                  history.push(`/@${result.payload.accounts[0].acct}`);
-                } else if (result.payload.statuses[0]) {
-                  history.push(
-                    `/@${result.payload.statuses[0].account.acct}/${result.payload.statuses[0].id}`,
-                  );
-                }
-              }
-
-              unfocus();
-            },
-          });
+          mastoPath = new URL(trimmedValue).pathname.replace(/^\//, ''); 
+        } else {
+          mastoPath = '';
         }
 
         const couldBeHashtag =
           (trimmedValue.startsWith('#') && trimmedValue.length > 1) ||
-          trimmedValue.match(HASHTAG_REGEX);
+          trimmedValue.match(HASHTAG_REGEX) ||
+          (couldBeURL && mastoPath.startsWith('tags/'));
 
         if (couldBeHashtag) {
-          newQuickActions.push({
-            key: 'go-to-hashtag',
-            label: (
-              <FormattedMessage
-                id='search.quick_action.go_to_hashtag'
-                defaultMessage='Go to hashtag {x}'
-                values={{ x: <mark>#{trimmedValue.replace(/^#/, '')}</mark> }}
-              />
-            ),
-            action: () => {
-              const query = trimmedValue.replace(/^#/, '');
-              history.push(`/tags/${query}`);
-              void dispatch(clickSearchResult({ q: query, type: 'hashtag' }));
-              unfocus();
-            },
-          });
+          const query = couldBeURL ? mastoPath.replace(/^tags\//, '') : trimmedValue.replace(/^#/, '');
+
+          newQuickActions.push(QuickActionGenerators.couldBeHashtag(query));
         }
 
-        const couldBeUsername = /^@?[a-z0-9_-]+(@[^\s]+)?$/i.exec(trimmedValue);
+        const userRegexp = /^@?[a-z0-9_-]+(@[^\s]+)?$/i;
+        const couldBeUsername =
+          userRegexp.test(trimmedValue) ||
+          (couldBeURL && userRegexp.test(mastoPath));
 
         if (couldBeUsername) {
-          newQuickActions.push({
-            key: 'go-to-account',
-            label: (
-              <FormattedMessage
-                id='search.quick_action.go_to_account'
-                defaultMessage='Go to profile {x}'
-                values={{ x: <mark>@{trimmedValue.replace(/^@/, '')}</mark> }}
-              />
-            ),
-            action: () => {
-              const query = trimmedValue.replace(/^@/, '');
-              history.push(`/@${query}`);
-              void dispatch(clickSearchResult({ q: query, type: 'account' }));
-              unfocus();
-            },
-          });
+          const mastoUser = mastoPath.replace(/^@/, '');
+
+          const query = !couldBeURL ?
+            trimmedValue.replace(/^@/, '') :
+            ((mastoPath.match(/@/) || []).length == 1 ?
+              `${mastoUser}@${new URL(trimmedValue).hostname}` :
+              mastoUser
+            );
+
+          newQuickActions.push(QuickActionGenerators.couldBeUsername(query));
         }
 
         const couldBeStatusSearch = searchEnabled;
 
         if (couldBeStatusSearch && signedIn) {
-          newQuickActions.push({
-            key: 'status-search',
-            label: (
-              <FormattedMessage
-                id='search.quick_action.status_search'
-                defaultMessage='Posts matching {x}'
-                values={{ x: <mark>{trimmedValue}</mark> }}
-              />
-            ),
-            action: () => {
-              submit(trimmedValue, 'statuses');
-            },
-          });
+          newQuickActions.push(QuickActionGenerators.couldBeStatusSearch(trimmedValue));
         }
 
-        newQuickActions.push({
-          key: 'account-search',
-          label: (
-            <FormattedMessage
-              id='search.quick_action.account_search'
-              defaultMessage='Profiles matching {x}'
-              values={{ x: <mark>{trimmedValue}</mark> }}
-            />
-          ),
-          action: () => {
-            submit(trimmedValue, 'accounts');
-          },
-        });
+        newQuickActions.push(QuickActionGenerators.accountSearch(trimmedValue));
       }
 
       setQuickActions(newQuickActions);
